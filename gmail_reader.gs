@@ -5,20 +5,21 @@ const CONFIG = {
   QUERY: "after:2025/01/01", // Gmail search query
   SHEET_NAME: "GmailData",
   SHEET_ID: "17PtcY1OmToTB6NxyD7alAuuEKGQRnUOmuW0LN3lvsQE",
-  MAX_THREADS: 100, // mỗi lần xử lý
   RAW_LIMIT: 5000, // giới hạn content
 };
 
+let count_total_read = 0;
 /***************************************
  * MAIN
  ***************************************/
 function runReadGmail() {
-  const threads = GmailApp.search(CONFIG.QUERY, 0, CONFIG.MAX_THREADS);
+  const threads = GmailApp.search(CONFIG.QUERY);
 
   threads.forEach((thread) => {
     const messages = thread.getMessages();
     messages.forEach((message) => {
       handleMessage(message);
+      count_total_read++;
     });
   });
 }
@@ -28,6 +29,7 @@ function runReadGmail() {
  ***************************************/
 function handleMessage(message) {
   const messageId = message.getId();
+  console.log(`${count_total_read} Processing message from ${messageId}`);
 
   if (isProcessed(messageId)) {
     return;
@@ -40,7 +42,6 @@ function handleMessage(message) {
     return;
   }
   const extracted = extractDataBankTransfer(body);
-  console.log(`Processing message from ${messageId}`);
 
   let beneficiaryName = extracted.beneficiaryName;
   if (!beneficiaryName) {
