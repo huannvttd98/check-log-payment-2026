@@ -34,25 +34,36 @@ function handleMessage(message) {
   }
 
   const body = message.getPlainBody();
-  const extracted = extractData(body);
-
   const emailFrom = message.getFrom();
   if (!isSendToVietcombank(emailFrom)) {
     console.log(`Skipping message from ${emailFrom}, not sent to Vietcombank.`);
     return;
   }
+  const extracted = extractDataBankTransfer(body);
+  console.log(`Processing message from ${messageId}`);
+
+  let beneficiaryName = extracted.beneficiaryName;
+  if (!beneficiaryName) {
+    beneficiaryName = extracted.beneficiaryName_sub;
+  }
+  let beneficiaryBank = extracted.beneficiaryBank;
+  if (!beneficiaryBank) {
+    beneficiaryBank = extracted.creditAccount;
+  }
+  let paymentDetail = extracted.paymentDetail;
+  if (!paymentDetail) {
+    paymentDetail = extracted.paymentDetail_sub;
+  }
 
   const row = [
     messageId,
-    emailFrom,
     message.getSubject(),
     message.getDate(),
-    extracted.beneficiaryName,
+    beneficiaryName,
+    beneficiaryBank,
     extracted.amount,
     extracted.currency,
-    extracted.beneficiaryBank,
-    extracted.paymentDetail,
-    // extracted.rawContent,
+    paymentDetail,
   ];
 
   saveRow(row);
@@ -64,23 +75,28 @@ function handleMessage(message) {
 /***************************************
  * DATA EXTRACT
  ***************************************/
-function extractData(body) {
+function extractDataBankTransfer(body) {
   return {
     type: "BANK_TRANSFER_VIETCOMBANK",
 
     remitterName: match(body, /\*Remitter’s name\*\s*([A-Z\s]+)/i),
 
     beneficiaryName: match(body, /\*Beneficiary Name\*\s*([A-Z0-9_\s]+)/i),
-
+    beneficiaryName_sub: match(
+      body,
+      /\*Beneficiary Name\s*\*\s*([A-Z0-9\s]+)/i,
+    ),
     beneficiaryBank: match(body, /\*Beneficiary Bank Name\*\s*(.+)/i),
-
+    beneficiaryBank_sub: match(body, /\*Beneficiary Bank Name\*\s*(.+)/i),
+    creditAccount: match(body, /\*Credit Account\*\s*(\d+)/i),
     amount: parseMoney(match(body, /\*Amount\*\s*([\d,]+)\s*VND/i)),
-
     currency: "VND",
-
     chargeCode: match(body, /\*Charge Code\*\s*(.+)/i),
-
     paymentDetail: match(body, /\*Details of Payment\*\s*(.+)/i),
+    paymentDetail_sub: match(
+      body,
+      /\*Details of Payment\s*\*\s*([\s\S]+?)\n\n/i,
+    ),
 
     rawContent: body.substring(0, CONFIG.RAW_LIMIT),
   };
