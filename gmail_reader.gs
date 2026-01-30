@@ -2,7 +2,7 @@
  * CONFIG
  ***************************************/
 const CONFIG = {
-  QUERY: "after:2023/12/31 before:2025/01/01", // Gmail search query (Year 2024)
+  QUERY: "after:2024/12/31 before:2026/01/01", // Gmail search query (Year 2025)
   SHEET_NAME: "GmailData",
   SHEET_ID: "17PtcY1OmToTB6NxyD7alAuuEKGQRnUOmuW0LN3lvsQE",
   RAW_LIMIT: 5000, // giới hạn content
@@ -14,12 +14,28 @@ let count_total_read = 0;
  * MAIN
  ***************************************/
 function runReadGmail() {
-  let start = 0;
+  const startTime = new Date().getTime();
+  const MAX_EXECUTION_TIME = 4.5 * 60 * 1000; // Giới hạn 4.5 phút để an toàn
+  const props = PropertiesService.getScriptProperties();
+
+  // Lấy vị trí đã lưu từ lần chạy trước (nếu có)
+  let start = parseInt(props.getProperty('LAST_START_INDEX')) || 0;
   let threads;
 
+  console.log(`---> Bắt đầu chạy. Vị trí bắt đầu: ${start}`);
+
   do {
-    console.log(`---> Đang tải batch bắt đầu từ: ${start}`);
+    // Kiểm tra thời gian, nếu sắp hết thì dừng và lưu vị trí
+    if (new Date().getTime() - startTime > MAX_EXECUTION_TIME) {
+      props.setProperty('LAST_START_INDEX', start.toString());
+      console.log(`⚠️ SẮP HẾT THỜI GIAN! Đã lưu vị trí ${start}. Vui lòng CHẠY LẠI script để tiếp tục.`);
+      return;
+    }
+
+    console.log(`---> Đang tải batch từ index: ${start}`);
     threads = GmailApp.search(CONFIG.QUERY, start, CONFIG.BATCH_SIZE);
+
+    if (threads.length === 0) break;
 
     threads.forEach((thread) => {
       const messages = thread.getMessages();
@@ -32,7 +48,9 @@ function runReadGmail() {
     start += CONFIG.BATCH_SIZE;
   } while (threads.length === CONFIG.BATCH_SIZE);
 
-  console.log(`Hoàn tất! Tổng số tin nhắn đã xử lý: ${count_total_read}`);
+  // Nếu chạy xong hết thì xóa vị trí đã lưu để lần sau chạy lại từ đầu
+  props.deleteProperty('LAST_START_INDEX');
+  console.log(`✅ HOÀN TẤT TOÀN BỘ! Tổng số tin nhắn đã xử lý trong phiên này: ${count_total_read}`);
 }
 
 /***************************************
