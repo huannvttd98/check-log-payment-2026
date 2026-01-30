@@ -2,10 +2,11 @@
  * CONFIG
  ***************************************/
 const CONFIG = {
-  QUERY: "after:2025/01/01", // Gmail search query
+  QUERY: "after:2023/12/31 before:2025/01/01", // Gmail search query (Year 2024)
   SHEET_NAME: "GmailData",
   SHEET_ID: "17PtcY1OmToTB6NxyD7alAuuEKGQRnUOmuW0LN3lvsQE",
   RAW_LIMIT: 5000, // giới hạn content
+  BATCH_SIZE: 100, // Số lượng mail lấy mỗi lần
 };
 
 let count_total_read = 0;
@@ -13,15 +14,25 @@ let count_total_read = 0;
  * MAIN
  ***************************************/
 function runReadGmail() {
-  const threads = GmailApp.search(CONFIG.QUERY);
+  let start = 0;
+  let threads;
 
-  threads.forEach((thread) => {
-    const messages = thread.getMessages();
-    messages.forEach((message) => {
-      handleMessage(message);
-      count_total_read++;
+  do {
+    console.log(`---> Đang tải batch bắt đầu từ: ${start}`);
+    threads = GmailApp.search(CONFIG.QUERY, start, CONFIG.BATCH_SIZE);
+
+    threads.forEach((thread) => {
+      const messages = thread.getMessages();
+      messages.forEach((message) => {
+        handleMessage(message);
+        count_total_read++;
+      });
     });
-  });
+
+    start += CONFIG.BATCH_SIZE;
+  } while (threads.length === CONFIG.BATCH_SIZE);
+
+  console.log(`Hoàn tất! Tổng số tin nhắn đã xử lý: ${count_total_read}`);
 }
 
 /***************************************
